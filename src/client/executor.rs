@@ -101,7 +101,7 @@ mod ui {
 
     #[test]
     fn calling_conn_like_on_boxed_dyn_executor() {
-        async fn _f(conn: &Box<dyn Executor>) -> Result<()> {
+        async fn _f(conn: &dyn Executor) -> Result<()> {
             conn.ping().await
         }
     }

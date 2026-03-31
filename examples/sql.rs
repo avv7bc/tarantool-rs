@@ -14,10 +14,9 @@ async fn main() -> Result<(), anyhow::Error> {
             .decode_select::<(u64, String)>()?
     );
 
-    let prepared_insert = dbg!(
-        conn.prepare_sql("INSERT INTO \"clients\" (\"id\", \"name\") VALUES (?, ?), (?, ?)")
-            .await?
-    );
+    let prepared_insert = conn
+        .prepare_sql("INSERT INTO \"clients\" (\"id\", \"name\") VALUES (?, ?), (?, ?)")
+        .await?;
     info!(
         "INSERT row count {}",
         prepared_insert

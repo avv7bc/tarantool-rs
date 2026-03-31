@@ -22,7 +22,7 @@ pub trait ExecutorExt: Executor {
     ///
     /// It is not recommended to use this method directly, since some requests
     /// should be only sent in specific situations and might break connection.
-    fn send_request<R>(&self, body: R) -> BoxFuture<Result<Value>>
+    fn send_request<R>(&self, body: R) -> BoxFuture<'_, Result<Value>>
     where
         R: Request;
 
@@ -200,7 +200,7 @@ pub trait ExecutorExt: Executor {
 
 #[async_trait]
 impl<E: Executor + ?Sized> ExecutorExt for E {
-    fn send_request<R>(&self, body: R) -> BoxFuture<Result<Value>>
+    fn send_request<R>(&self, body: R) -> BoxFuture<'_, Result<Value>>
     where
         R: Request,
     {

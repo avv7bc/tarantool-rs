@@ -1,15 +1,11 @@
-#[macro_use]
-extern crate rental;
-
 pub use testcontainers;
 
-pub use self::test_container::TarantoolTestContainer;
+use std::borrow::Cow;
+use std::collections::HashMap;
 
-use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
-
-use maplit::hashmap;
-use rental::rental;
-use testcontainers::{clients::Cli as DockerClient, core::WaitFor, Container, Image, ImageArgs};
+use testcontainers::core::{ContainerPort, IntoContainerPort, Mount, WaitFor};
+use testcontainers::runners::AsyncRunner;
+use testcontainers::{ContainerAsync, Image};
 
 const IMAGE_NAME: &str = "tarantool/tarantool";
 const DEFAULT_IMAGE_TAG: &str = "latest";
@@ -18,109 +14,101 @@ fn image_tag() -> String {
     std::env::var("TARANTOOL_IMAGE_TAG").unwrap_or(DEFAULT_IMAGE_TAG.into())
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct TarantoolDefaultArgs {}
-
-impl ImageArgs for TarantoolDefaultArgs {
-    fn into_iterator(self) -> Box<dyn Iterator<Item = String>> {
-        vec!["tarantool".into()].into_iterator()
-    }
-}
-
-pub struct TarantoolImage<Args> {
+pub struct TarantoolImage {
+    tag: String,
     env_vars: HashMap<String, String>,
-    volumes: HashMap<String, String>,
-    _args: PhantomData<Args>,
+    mounts: Vec<Mount>,
+    cmd: Vec<String>,
 }
 
-impl<Args> Default for TarantoolImage<Args> {
+impl Default for TarantoolImage {
     fn default() -> Self {
         Self {
-            env_vars: hashmap! {
-                "TT_MEMTX_USE_MVCC_ENGINE".into() => "true".into()
-            },
-            volumes: HashMap::new(),
-            _args: PhantomData::default(),
+            tag: image_tag(),
+            env_vars: HashMap::from([(
+                "TT_MEMTX_USE_MVCC_ENGINE".into(),
+                "true".into(),
+            )]),
+            mounts: Vec::new(),
+            cmd: vec!["tarantool".into()],
         }
     }
 }
 
-impl<Args> Image for TarantoolImage<Args>
-where
-    Args: ImageArgs + Clone + Debug,
-{
-    type Args = Args;
-
-    fn name(&self) -> String {
-        IMAGE_NAME.into()
+impl Image for TarantoolImage {
+    fn name(&self) -> &str {
+        IMAGE_NAME
     }
 
-    fn tag(&self) -> String {
-        image_tag()
+    fn tag(&self) -> &str {
+        &self.tag
     }
 
     fn ready_conditions(&self) -> Vec<WaitFor> {
         vec![WaitFor::message_on_stderr("entering the event loop")]
     }
 
-    fn expose_ports(&self) -> Vec<u16> {
-        vec![3301]
+    fn expose_ports(&self) -> &[ContainerPort] {
+        &[ContainerPort::Tcp(3301)]
     }
 
-    fn env_vars(&self) -> Box<dyn Iterator<Item = (&String, &String)> + '_> {
-        Box::new(self.env_vars.iter())
+    fn env_vars(
+        &self,
+    ) -> impl IntoIterator<Item = (impl Into<Cow<'_, str>>, impl Into<Cow<'_, str>>)> {
+        self.env_vars.iter()
     }
 
-    fn volumes(&self) -> Box<dyn Iterator<Item = (&String, &String)> + '_> {
-        Box::new(self.volumes.iter())
+    fn mounts(&self) -> impl IntoIterator<Item = &Mount> {
+        self.mounts.iter()
+    }
+
+    fn cmd(&self) -> impl IntoIterator<Item = impl Into<Cow<'_, str>>> {
+        self.cmd.iter()
     }
 }
 
-impl<Args> TarantoolImage<Args> {
+impl TarantoolImage {
     pub fn disable_mvcc(mut self) -> Self {
         drop(self.env_vars.remove("TT_MEMTX_USE_MVCC_ENGINE"));
         self
     }
 
     pub fn volume(mut self, host_path: String, container_path: String) -> Self {
-        self.volumes.insert(host_path, container_path);
+        self.mounts
+            .push(Mount::bind_mount(host_path, container_path));
+        self
+    }
+
+    pub fn cmd(mut self, cmd: Vec<String>) -> Self {
+        self.cmd = cmd;
         self
     }
 }
 
-rental! {
-    mod test_container {
-        use super::*;
-
-        #[rental]
-        pub struct TarantoolTestContainer<Args: 'static>
-            where Args: Clone + Debug + ImageArgs
-        {
-            client: Box<DockerClient>,
-            container: Container<'client, TarantoolImage<Args>>
-        }
-    }
+pub struct TarantoolTestContainer {
+    container: ContainerAsync<TarantoolImage>,
+    port: u16,
 }
 
-impl<Args> Default for TarantoolTestContainer<Args>
-where
-    Args: Clone + Debug + ImageArgs + Default,
-{
-    fn default() -> Self {
-        Self::from_image(TarantoolImage::<Args>::default())
+impl TarantoolTestContainer {
+    pub async fn new(image: TarantoolImage) -> Self {
+        let container = image.start().await.expect("Failed to start Tarantool container");
+        let port = container
+            .get_host_port_ipv4(3301.tcp())
+            .await
+            .expect("Failed to get host port");
+        Self { container, port }
     }
-}
 
-impl<Args> TarantoolTestContainer<Args>
-where
-    Args: Clone + Debug + ImageArgs + Default,
-{
-    pub fn from_image(image: TarantoolImage<Args>) -> Self {
-        let docker = DockerClient::default();
-        Self::new(Box::new(docker), |docker| docker.run(image))
+    pub async fn default_container() -> Self {
+        Self::new(TarantoolImage::default()).await
     }
 
     pub fn connect_port(&self) -> u16 {
-        self.rent(|this| this.get_host_port_ipv4(3301))
+        self.port
+    }
+
+    pub fn container(&self) -> &ContainerAsync<TarantoolImage> {
+        &self.container
     }
 }

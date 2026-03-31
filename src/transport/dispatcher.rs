@@ -74,9 +74,8 @@ impl DispatcherSender {
 
             // SAFETY: initial value is put in Option immediately.
             // On next iterations value is put in Option right before `continue` expression.
-            if let Err(send_err) = self.tx.send((request.take().unwrap(), tx)).await {
-                request = Some(send_err.0 .0);
-                continue;
+            if let Err(_send_err) = self.tx.send((request.take().unwrap(), tx)).await {
+                return Err(Error::ConnectionClosed);
             }
 
             match rx.await {
@@ -201,7 +200,7 @@ impl ReconnectIntervalState {
             ReconnectIntervalState::Fixed(x) => *x,
 
             ReconnectIntervalState::ExponentialBackoff { ref mut state, max } => {
-                dbg!(state).next_backoff().unwrap_or(*max)
+                state.next_backoff().unwrap_or(*max)
             }
         }
     }

@@ -121,11 +121,11 @@ impl<E> Space<E> {
         self.executor
     }
 
-    pub fn primary_index(&self) -> Index<&E> {
+    pub fn primary_index(&self) -> Index<'_, &E> {
         Index::new(&self.executor, &self.primary_index_metadata, &self.metadata)
     }
 
-    pub fn index(&self, key: impl Into<SchemaEntityKey>) -> Option<Index<&E>> {
+    pub fn index(&self, key: impl Into<SchemaEntityKey>) -> Option<Index<'_, &E>> {
         self.get_index(key)
             .map(|index| Index::new(&self.executor, index, &self.metadata))
     }
@@ -176,7 +176,7 @@ impl<E: Executor> Space<E> {
     }
 
     /// Iterator over indices in this space.
-    pub fn indices(&self) -> impl Iterator<Item = Index<&E>> {
+    pub fn indices(&self) -> impl Iterator<Item = Index<'_, &E>> {
         self.indices_metadata
             .iter()
             .map(|index| Index::new(&self.executor, index, &self.metadata))

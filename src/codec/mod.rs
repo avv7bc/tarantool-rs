@@ -16,16 +16,12 @@ pub mod request;
 pub mod response;
 pub mod utils;
 
+#[derive(Default)]
 enum LengthDecoder {
+    #[default]
     NoMarker,
     Marker(Marker),
     Value(usize),
-}
-
-impl Default for LengthDecoder {
-    fn default() -> Self {
-        Self::NoMarker
-    }
 }
 
 impl LengthDecoder {
@@ -50,21 +46,21 @@ impl LengthDecoder {
         let length = match marker {
             Marker::FixPos(x) => x as usize,
             Marker::U8 => {
-                if src.len() > 1 {
+                if !src.is_empty() {
                     src.get_u8() as usize
                 } else {
                     return Ok(None);
                 }
             }
             Marker::U16 => {
-                if src.len() > 2 {
+                if src.len() >= 2 {
                     src.get_u16() as usize
                 } else {
                     return Ok(None);
                 }
             }
             Marker::U32 => {
-                if src.len() > 4 {
+                if src.len() >= 4 {
                     src.get_u32() as usize
                 } else {
                     return Ok(None);
@@ -72,7 +68,7 @@ impl LengthDecoder {
             }
             Marker::U64 => {
                 //
-                if src.len() > 8 {
+                if src.len() >= 8 {
                     src.get_u64() as usize
                 } else {
                     return Ok(None);
@@ -176,7 +172,7 @@ impl Greeting {
             .enumerate()
             .rev()
             .find(|x| *x.1 != b' ')
-            .map_or(&b""[..], |(idx, _)| &line2[0..idx]);
+            .map_or(&b""[..], |(idx, _)| &line2[0..=idx]);
         let salt = STANDARD_NO_PAD
             .decode(salt_b64)
             .context("Failed to decode salt from base64")

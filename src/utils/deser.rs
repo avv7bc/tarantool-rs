@@ -12,7 +12,7 @@ pub fn value_to_map(value: Value) -> Result<Vec<(Value, Value)>, DecodingError> 
 
 pub(crate) fn find_and_take_single_key_in_map(key: u8, map: Vec<(Value, Value)>) -> Option<Value> {
     for (k, v) in map {
-        if matches!(k, Value::Integer(x) if x.as_u64().map_or(false, |y| y == key as u64)) {
+        if matches!(k, Value::Integer(x) if x.as_u64() == Some(key as u64)) {
             return Some(v);
         }
     }

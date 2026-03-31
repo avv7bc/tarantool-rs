@@ -22,7 +22,7 @@ async fn main() -> Result<(), anyhow::Error> {
         space
             .upsert(
                 (0, "Name"),
-                DmoOperation::string_splice("name", 2, 2, "!!".into()),
+                DmoOperation::string_splice("name", 2, 2, "!!"),
             )
             .await?
     );
@@ -31,7 +31,7 @@ async fn main() -> Result<(), anyhow::Error> {
         space
             .update(
                 (0,),
-                (DmoOperation::string_splice("name", 2, 2, "!!".into()),)
+                (DmoOperation::string_splice("name", 2, 2, "!!"),)
             )
             .await?
     );

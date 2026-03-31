@@ -167,7 +167,7 @@ mod ops {
     pub(super) const OR: &str = "|";
     pub(super) const XOR: &str = "^";
     pub(super) const STRING_SPLICE: &str = ":";
-    pub(super) const INSERT: &str = "|";
+    pub(super) const INSERT: &str = "!";
     pub(super) const DEL: &str = "#";
     pub(super) const ASSIGN: &str = "=";
 }

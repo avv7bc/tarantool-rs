@@ -2,10 +2,6 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use futures::{future::try_join_all, TryFutureExt};
 use tarantool_rs::{Connection, ExecutorExt};
 
-type TarantoolTestContainer = tarantool_test_container::TarantoolTestContainer<
-    tarantool_test_container::TarantoolDefaultArgs,
->;
-
 pub fn compare_tarantool_rs_and_rusty_tarantool(c: &mut Criterion) {
     let mut group = c.benchmark_group("compare_with_rusty_tarantool");
 
@@ -14,7 +10,8 @@ pub fn compare_tarantool_rs_and_rusty_tarantool(c: &mut Criterion) {
         .enable_all()
         .build()
         .expect("Tokio multithread runtime built");
-    let container = TarantoolTestContainer::default();
+    let container = tokio_rt
+        .block_on(tarantool_test_container::TarantoolTestContainer::default_container());
     let tt_addr = || format!("127.0.0.1:{}", container.connect_port());
     let conn = tokio_rt
         .block_on(async { Connection::builder().build(tt_addr()).await })
@@ -81,7 +78,7 @@ pub fn compare_tarantool_rs_and_rusty_tarantool(c: &mut Criterion) {
                         conn_rusty
                             .eval("return ...", &(1, "two", true))
                             .and_then(|resp| async {
-                                resp.decode::<(i64, String, bool)>().map_err(Into::into)
+                                resp.decode::<(i64, String, bool)>()
                             })
                     };
                     let futures = try_join_all((0..*p).map(make_fut));

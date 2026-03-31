@@ -51,7 +51,7 @@ async fn process_input(conn: &Connection, line: String) {
     match conn
         .eval::<_, _>(query, ())
         .await
-        .and_then(|resp| Ok(resp.decode_full()?))
+        .and_then(|resp| Ok(resp.decode_full::<rmpv::Value>()?))
     {
         Ok(x) => println!(
             "Result: {}",

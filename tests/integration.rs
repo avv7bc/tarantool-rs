@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use tarantool_rs::{errors::Error, Connection, Executor, ExecutorExt};
 use tracing_test::traced_test;
 
-use crate::common::{TarantoolTestContainer, TarantoolTestContainerExt};
-
 mod common;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -21,9 +19,9 @@ struct CrewMember {
 #[tokio::test]
 #[traced_test]
 async fn image_test() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn = container.create_conn().await?;
+    let conn = common::create_conn(&container).await?;
     conn.ping().await?;
 
     Ok(())
@@ -32,7 +30,7 @@ async fn image_test() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn auth_ok() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
     let conn = Connection::builder()
         .auth("Sisko", Some("A-4-7-1"))
@@ -46,7 +44,7 @@ async fn auth_ok() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn auth_err() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
     assert_matches!(
         Connection::builder()
@@ -63,9 +61,9 @@ async fn auth_err() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn eval() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn = container.create_conn().await?;
+    let conn = common::create_conn(&container).await?;
     let res: u32 = conn.eval("return ...", (42,)).await?.decode_result()?;
     assert_eq!(res, 42);
 
@@ -75,9 +73,9 @@ async fn eval() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn call() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn = container.create_conn().await?;
+    let conn = common::create_conn(&container).await?;
     let res: String = conn.call("station_name", (false,)).await?.decode_first()?;
     assert_eq!(res, "Deep Space 9");
 
@@ -87,9 +85,9 @@ async fn call() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn retrieve_schema() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn = container.create_conn().await?;
+    let conn = common::create_conn(&container).await?;
     let space = conn
         .space("ds9_crew")
         .await?
@@ -110,9 +108,9 @@ async fn retrieve_schema() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn select_all() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn: Connection = container.create_conn().await?;
+    let conn: Connection = common::create_conn(&container).await?;
     let space = conn
         .space("ds9_crew")
         .await?
@@ -138,9 +136,9 @@ async fn select_all() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn select_limits() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn: Connection = container.create_conn().await?;
+    let conn: Connection = common::create_conn(&container).await?;
     let space = conn
         .space("ds9_crew")
         .await?
@@ -166,9 +164,9 @@ async fn select_limits() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn select_by_key() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
-    let conn: Connection = container.create_conn().await?;
+    let conn: Connection = common::create_conn(&container).await?;
     let space = conn
         .space("ds9_crew")
         .await?
@@ -195,7 +193,7 @@ async fn select_by_key() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn timeout() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
     let conn = Connection::builder()
         .timeout(Duration::from_millis(100))
@@ -213,7 +211,7 @@ async fn timeout() -> Result<(), anyhow::Error> {
 #[tokio::test]
 #[traced_test]
 async fn dmo() -> Result<(), anyhow::Error> {
-    let container = TarantoolTestContainer::new_with_test_data();
+    let container = common::new_with_test_data().await;
 
     let conn = Connection::builder()
         .timeout(Duration::from_millis(100))
