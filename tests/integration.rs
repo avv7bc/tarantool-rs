@@ -253,3 +253,27 @@ async fn dmo() -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+// A procedure that is removed (`proc = nil`) and later redefined must be callable
+// again on the same live connection -- the client must not cache its absence.
+#[tokio::test]
+#[traced_test]
+async fn call_proc_redefined_after_nil() -> Result<(), anyhow::Error> {
+    let container = common::new_with_test_data().await;
+    let conn = common::create_conn(&container).await?;
+
+    conn.eval("function myproc() return 'hello' end", ())
+        .await?;
+    let res: String = conn.call("myproc", ()).await?.decode_first()?;
+    assert_eq!(res, "hello");
+
+    conn.eval("myproc = nil", ()).await?;
+    assert_matches!(conn.call("myproc", ()).await, Err(Error::Response(_)));
+
+    conn.eval("function myproc() return 'hello again' end", ())
+        .await?;
+    let res: String = conn.call("myproc", ()).await?.decode_first()?;
+    assert_eq!(res, "hello again");
+
+    Ok(())
+}

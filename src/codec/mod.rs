@@ -172,7 +172,7 @@ impl Greeting {
             .enumerate()
             .rev()
             .find(|x| *x.1 != b' ')
-            .map_or(&b""[..], |(idx, _)| &line2[0..=idx]);
+            .map_or(&b""[..], |(idx, _)| &line2[0..idx]);
         let salt = STANDARD_NO_PAD
             .decode(salt_b64)
             .context("Failed to decode salt from base64")
@@ -181,5 +181,35 @@ impl Greeting {
             server: String::from_utf8_lossy(line1).into_owned(),
             salt,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+
+    use super::Greeting;
+
+    /// Regression test for greeting salt decoding.
+    ///
+    /// Tarantool always sends a 32-byte salt, base64-encoded into 44 characters
+    /// ending with a `=` padding character. Including that `=` while decoding with
+    /// a no-padding engine breaks every (re)connection with "Invalid padding".
+    #[test]
+    fn greeting_decode_salt_with_padding() {
+        let salt: Vec<u8> = (0..32u8).collect();
+        let salt_b64 = STANDARD.encode(&salt); // 44 chars, ends with '='
+        assert!(salt_b64.ends_with('='));
+
+        let mut buffer = [b' '; Greeting::SIZE];
+        let version = b"Tarantool 2.11.0 (Binary)";
+        buffer[0..version.len()].copy_from_slice(version);
+        buffer[63] = b'\n';
+        buffer[64..64 + salt_b64.len()].copy_from_slice(salt_b64.as_bytes());
+        buffer[127] = b'\n';
+
+        let greeting = Greeting::decode(buffer).expect("greeting must decode");
+        // Tarantool clients use the first 20 bytes of the salt for auth.
+        assert_eq!(&greeting.salt[..20], &salt[..20]);
     }
 }
